@@ -1,0 +1,3 @@
+PySide6-Essentials>=6.8
+# 打包为 exe 时才需要：
+# PyInstaller>=6.0
