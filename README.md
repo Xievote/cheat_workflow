@@ -158,18 +158,28 @@ score = 文件名含 "fling" +5，含 "trainer" +3，含 cheat/+版本号 +1
 
 ## 运行方式
 
-### 一键（Windows 双击）
+程序以 **`pythonw.exe`** 启动（Windows GUI 子系统，没有控制台窗口），因此：
+
+- 双击 `GTV.vbs` —— **推荐**，全程无任何黑窗口，最适合日常使用
+- 双击 `run.bat` —— 负责检查/安装依赖，然后启动 GTV 并**自动关闭自己**（约 2 秒）
+- 命令行：`pythonw -m gtv.boot`（无控制台）或 `python -m gtv.boot`（带控制台，用于排错）
+
+> 为什么要这样：以前版本用 `python -m gtv.main` **阻塞式**运行，GUI 挂在控制台进程树上，
+> 关掉黑窗会把 GTV 一起带走。现在 GTV 由 pythonw 启动，是**独立进程**，
+> 控制台窗口关不关都不影响它。
+
+排错入口：
+
+| 现象 | 处理 |
+|---|---|
+| 双击后没有任何窗口 | 先看 `%APPDATA%\GameTrainerVault\logs\gtv.log`；运行时错误会同时弹出原生提示框 |
+| vbs 被安全软件拦截 | 改用 `run.bat`，或用命令行 `pythonw -m gtv.boot` |
+| 想看实时报错输出 | 用 `python -m gtv.boot`（保留控制台） |
+
+### 第一次使用
 
 ```bat
-run.bat
-```
-脚本会自动创建虚拟环境、安装依赖并启动（首次较慢）。
-
-### 手动
-
-```bash
-pip install -r requirements.txt
-python -m gtv.main
+run.bat          :: 双击即可，自动建 .venv 并安装依赖（仅首次较慢）
 ```
 
 ### 打包成 exe
@@ -177,7 +187,8 @@ python -m gtv.main
 ```bash
 pip install pyinstaller
 python tools/build_exe.py
-# 产出：dist/GTV.exe
+# 产出：dist/GTV/GTV.exe
+# 注意：打包后请直接双击 GTV.exe，它本身就是 GUI 程序，无需 bat/vbs
 ```
 
 ---

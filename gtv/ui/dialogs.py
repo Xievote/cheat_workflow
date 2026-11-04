@@ -268,7 +268,21 @@ class SettingsDialog(QDialog):
 
         f = QFormLayout()
         f.setSpacing(10)
-        f.addRow("修改器库目录", QLabel(str(config.TRAINER_DIR)))
+
+        # 修改器库目录：可自定义（默认 D:\cheat），立即生效于之后的导入
+        self.e_dir = QLineEdit(str(config.TRAINER_DIR))
+        b_dir = QPushButton("浏览…")
+        b_dir.setFixedWidth(64)
+        b_dir.clicked.connect(self._pick_dir)
+        row_dir = QHBoxLayout()
+        row_dir.setSpacing(6)
+        row_dir.addWidget(self.e_dir, 1)
+        row_dir.addWidget(b_dir)
+        f.addRow("修改器库目录", row_dir)
+        tip_dir = QLabel("新目录对之后导入的文件生效；已有文件位置不变。")
+        tip_dir.setObjectName("muted")
+        f.addRow("", tip_dir)
+
         f.addRow("数据库", QLabel(config.db_url_display()))
         self.e_pwd = QLineEdit(db.get_setting("archive_passwords", ",".join(config.DEFAULT_ARCHIVE_PASSWORDS)))
         f.addRow("解压候选密码（逗号分隔）", self.e_pwd)
@@ -285,7 +299,7 @@ class SettingsDialog(QDialog):
 
         row = QHBoxLayout()
         b_open = QPushButton("打开库目录")
-        b_open.clicked.connect(lambda: open_local_path(str(config.APP_DIR)))
+        b_open.clicked.connect(lambda: open_local_path(str(config.TRAINER_DIR)))
         b_reseed = QPushButton("重置内置目录")
         b_reseed.clicked.connect(self._reseed)
         row.addWidget(b_open)
@@ -309,11 +323,35 @@ class SettingsDialog(QDialog):
         foot.addWidget(ok)
         v.addLayout(foot)
 
+    def _pick_dir(self) -> None:
+        start = self.e_dir.text().strip() or str(config.TRAINER_DIR)
+        d = QFileDialog.getExistingDirectory(self, "选择修改器库目录", start)
+        if d:
+            self.e_dir.setText(d)
+
     def _save(self) -> None:
         self.db.set_setting("archive_passwords", self.e_pwd.text().strip())
         self.db.set_setting("default_admin", "1" if self.chk_admin.isChecked() else "0")
         self.db.set_setting("minimize_to_tray", "1" if self.chk_tray.isChecked() else "0")
         self.db.set_setting("confirm_online", "1" if self.chk_confirm.isChecked() else "0")
+
+        # 修改器库目录：校验可创建后立即生效（对之后导入的文件生效）
+        new_dir = self.e_dir.text().strip()
+        if new_dir and Path(new_dir) != config.TRAINER_DIR:
+            from ..core import config as cfg
+
+            try:
+                p = Path(new_dir)
+                p.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:  # noqa: BLE001
+                QMessageBox.warning(self, "目录不可用", f"无法使用该目录：{exc}\n\n设置未保存该目录项。")
+            else:
+                cfg.TRAINER_DIR = p
+                self.db.set_setting("trainer_dir", str(p))
+                QMessageBox.information(
+                    self, "已生效",
+                    f"修改器库目录已切换为：\n{p}\n\n（对之后导入的文件生效，已有文件位置不变）",
+                )
         self.accept()
 
     def _reseed(self) -> None:

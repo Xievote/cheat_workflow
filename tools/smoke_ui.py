@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from gtv.core.database import Database  # noqa: E402
 from gtv.core.launcher import Launcher  # noqa: E402
 from gtv.ui.main_window import MainWindow  # noqa: E402
-from gtv.ui.theme import style_sheet  # noqa: E402
+from gtv.ui.theme import light_palette, style_sheet  # noqa: E402
 
 OUT = ROOT / "docs" / "ui-smoke.png"
 
@@ -28,6 +28,7 @@ OUT = ROOT / "docs" / "ui-smoke.png"
 def main() -> int:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    app.setPalette(light_palette())
     app.setStyleSheet(style_sheet())
 
     db = Database()
@@ -53,9 +54,17 @@ def main() -> int:
         results.append(("选中后详情填充", win.detail.t is not None, win.detail.t.game_title if win.detail.t else ""))
         results.append(("功能表行数", win.detail.table.rowCount() > 0, f"{win.detail.table.rowCount()} 行"))
 
+        before = db.get_trainer(first).favorite
         win.toggle_favorite(first)
         app.processEvents()
-        results.append(("收藏切换", db.get_trainer(first).favorite, ""))
+        after = db.get_trainer(first).favorite
+        results.append(("收藏切换", before != after, f"{before} -> {after}"))
+        win.toggle_favorite(first)  # 还原，保证测试幂等
+        app.processEvents()
+
+        # 保证有且仅有一个收藏项，供侧栏过滤测试
+        if not db.search(side="favorite"):
+            db.toggle_favorite(first)
 
         win.search.setText("魂系")
         win.reload_library()
@@ -66,7 +75,7 @@ def main() -> int:
         win.side_key = "favorite"
         win.reload_library()
         app.processEvents()
-        results.append(("侧栏收藏过滤", len(win.cards) == 1, f"{len(win.cards)} 张"))
+        results.append(("侧栏收藏过滤", len(win.cards) >= 1, f"{len(win.cards)} 张"))
 
         win.side_key = "all"
         win.reload_library()

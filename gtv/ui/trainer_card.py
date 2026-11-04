@@ -43,14 +43,16 @@ class TrainerCard(QFrame):
 
         # 封面 + 状态角标
         self.cover = CoverLabel(t.game_title, t.cover_color or cached_color(t.game_title),
-                                w=CARD_W - 20, h=108)
+                                w=CARD_W - 20, h=112)
         root.addWidget(self.cover, 0, Qt.AlignmentFlag.AlignTop)
 
-        # 标题
+        # 标题（深色系统下必须显式设置颜色，否则白字不可见）
         self.lbl_title = QLabel(t.game_title)
         self.lbl_title.setWordWrap(True)
-        self.lbl_title.setStyleSheet("font-weight:600; font-size:13px;")
-        self.lbl_title.setFixedHeight(34)
+        self.lbl_title.setStyleSheet(
+            "QLabel{color:#1F2430; font-size:14px; font-weight:700; background:transparent;}"
+        )
+        self.lbl_title.setFixedHeight(38)
         root.addWidget(self.lbl_title)
 
         # 分类 / 来源
@@ -60,7 +62,6 @@ class TrainerCard(QFrame):
         row.addWidget(self.chip_cat, 0)
         row.addStretch(1)
         self.lbl_state = QLabel("")
-        self.lbl_state.setStyleSheet("font-size:11px;")
         row.addWidget(self.lbl_state)
         root.addLayout(row)
 
@@ -68,7 +69,9 @@ class TrainerCard(QFrame):
         foot = QHBoxLayout()
         foot.setSpacing(4)
         self.lbl_runs = QLabel("")
-        self.lbl_runs.setStyleSheet("color:#6B7280; font-size:11px;")
+        self.lbl_runs.setStyleSheet(
+            "QLabel{color:#6B7280; font-size:12px; background:transparent;}"
+        )
         foot.addWidget(self.lbl_runs, 1)
 
         self.btn_fav = QPushButton("☆")
@@ -100,15 +103,21 @@ class TrainerCard(QFrame):
         self.chip_cat.setText(f" {t.category} ")
 
         if t.installed:
-            self.lbl_state.setText("● 已安装")
-            self.lbl_state.setStyleSheet("color:#2E9E5B; font-size:11px;")
+            self.lbl_state.setText("● 已导入")
+            self.lbl_state.setStyleSheet(
+                "QLabel{color:#2E9E5B; font-size:12px; font-weight:600; background:transparent;}"
+            )
         else:
-            self.lbl_state.setText("○ 未导入")
-            self.lbl_state.setStyleSheet("color:#9AA3AF; font-size:11px;")
+            self.lbl_state.setText("○ 待导入")
+            self.lbl_state.setStyleSheet(
+                "QLabel{color:#B26B00; font-size:12px; font-weight:600; background:transparent;}"
+            )
         self.lbl_runs.setText(f"运行 {t.run_count} 次")
         self.btn_fav.setText("★" if t.favorite else "☆")
         self.btn_fav.setStyleSheet(
-            "color:#E8B400; border:none;" if t.favorite else "color:#9AA3AF; border:none;"
+            "QPushButton{color:#E8B400; font-size:15px; border:none; background:transparent;}"
+            if t.favorite
+            else "QPushButton{color:#9AA3AF; font-size:15px; border:none; background:transparent;}"
         )
 
     def set_selected(self, on: bool) -> None:

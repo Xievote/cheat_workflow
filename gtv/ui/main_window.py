@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         mv.setSpacing(8)
         head = QHBoxLayout()
         self.lbl_view = QLabel("全部修改器")
-        self.lbl_view.setStyleSheet("font-size:15px; font-weight:700;")
+        self.lbl_view.setStyleSheet("QLabel{font-size:15px; font-weight:700; color:#1F2430; background:transparent;}")
         head.addWidget(self.lbl_view, 1)
         self.lbl_count = QLabel("")
         self.lbl_count.setObjectName("muted")
@@ -142,7 +142,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([210, 760, 360])
+        splitter.setSizes([210, 730, 380])
 
         sb = QStatusBar()
         self.setStatusBar(sb)
@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
         h.setSpacing(10)
 
         logo = QLabel("GTV")
-        logo.setStyleSheet("font-size:18px; font-weight:800; color:#2F6FEB; letter-spacing:1px;")
+        logo.setStyleSheet("QLabel{font-size:18px; font-weight:800; color:#2F6FEB; letter-spacing:1px; background:transparent;}")
         h.addWidget(logo)
         sub = QLabel("单机游戏修改器管理器")
         sub.setObjectName("muted")

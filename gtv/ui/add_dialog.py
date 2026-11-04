@@ -99,7 +99,7 @@ class AddDialog(QDialog):
         self._build_manual_tab()
 
         foot = QHBoxLayout()
-        self.lbl_hint = QLabel("所有来源均需你自行核验；建议先用杀软扫描。")
+        self.lbl_hint = QLabel("所有来源均需你自行核验来源，建议先用杀软扫描后再运行。")
         self.lbl_hint.setObjectName("muted")
         foot.addWidget(self.lbl_hint, 1)
         close = QPushButton("关闭")
@@ -111,6 +111,9 @@ class AddDialog(QDialog):
     def _target_group(self) -> QVBoxLayout:
         box = QVBoxLayout()
         box.setSpacing(6)
+        head = QLabel("选择导入方式")
+        head.setObjectName("section")
+        box.addWidget(head)
         self.rdo_new = QRadioButton("新建条目")
         self.rdo_existing = QRadioButton("关联到已有条目（为其补充本体）")
         self.rdo_new.setChecked(True)
@@ -120,7 +123,8 @@ class AddDialog(QDialog):
 
     def _form(self) -> QFormLayout:
         f = QFormLayout()
-        f.setSpacing(8)
+        f.setSpacing(10)
+        f.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.ed_game = QLineEdit()
         self.ed_game.setPlaceholderText("例如：ELDEN RING")
         self.ed_title = QLineEdit()
@@ -164,7 +168,8 @@ class AddDialog(QDialog):
     def _build_file_tab(self) -> None:
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(10)
+        v.setContentsMargins(10, 12, 10, 12)
+        v.setSpacing(12)
         v.addLayout(self._target_group())
         self.rdo_new.toggled.connect(lambda: self._new_term("new" if self.rdo_new.isChecked() else "existing"))
         v.addLayout(self._form())
@@ -199,7 +204,8 @@ class AddDialog(QDialog):
     def _build_folder_tab(self) -> None:
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(10)
+        v.setContentsMargins(10, 12, 10, 12)
+        v.setSpacing(12)
         v.addWidget(QLabel("适合已解压好的修改器目录（内含 .exe）。整个目录会被复制到库中。"))
         row = QHBoxLayout()
         self.ed_dir = QLineEdit()
@@ -226,7 +232,8 @@ class AddDialog(QDialog):
     def _build_url_tab(self) -> None:
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(10)
+        v.setContentsMargins(10, 12, 10, 12)
+        v.setSpacing(12)
         v.addWidget(QLabel("粘贴你自己获取的直链（需以 .zip/.7z/.rar/.exe 结尾）。\n"
                            "本程序不会自动抓取任何站点内容，也不会绕过下载限制。"))
         self.ed_url = QLineEdit()
@@ -278,7 +285,8 @@ class AddDialog(QDialog):
     def _build_scan_tab(self) -> None:
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(10)
+        v.setContentsMargins(10, 12, 10, 12)
+        v.setSpacing(12)
         row = QHBoxLayout()
         self.ed_scan = QLineEdit()
         self.ed_scan.setPlaceholderText("选择一个存放修改器的目录进行扫描")
@@ -358,7 +366,8 @@ class AddDialog(QDialog):
     def _build_manual_tab(self) -> None:
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(10)
+        v.setContentsMargins(10, 12, 10, 12)
+        v.setSpacing(12)
         tip = QLabel("仅录入元数据（适用于先登记、后补文件的场景）。")
         tip.setObjectName("muted")
         v.addWidget(tip)

@@ -21,7 +21,26 @@ from gtv.core.database import Database  # noqa: E402
 from gtv.core.launcher import Launcher  # noqa: E402
 from gtv.ui.dialogs import AboutDialog  # noqa: E402
 from gtv.ui.main_window import MainWindow  # noqa: E402
-from gtv.ui.theme import style_sheet  # noqa: E402
+from gtv.ui.theme import light_palette, style_sheet  # noqa: E402
+
+
+def apply_trainer_dir(db: Database) -> str:
+    """应用自定义修改器库目录（settings.trainer_dir，默认 D:\\cheat）。
+
+    返回最终生效的目录字符串。目录创建失败时回退到默认 AppData 目录。
+    """
+    wanted = db.get_setting("trainer_dir", r"D:\cheat").strip() or r"D:\cheat"
+    from pathlib import Path as _P
+
+    try:
+        p = _P(wanted)
+        p.mkdir(parents=True, exist_ok=True)
+        config.TRAINER_DIR = p
+        return str(p)
+    except Exception:  # noqa: BLE001
+        config.TRAINER_DIR = config.APP_DIR / "trainers"
+        config.TRAINER_DIR.mkdir(parents=True, exist_ok=True)
+        return str(config.TRAINER_DIR)
 
 
 def _log_exception(exc_type, exc, tb) -> None:
@@ -54,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName(config.APP_NAME)
     app.setApplicationDisplayName(config.APP_TITLE)
     app.setStyle("Fusion")
+    # 关键：强制浅色调色板，避免深色系统下出现"白底白字"
+    app.setPalette(light_palette())
     app.setStyleSheet(style_sheet())
 
     # 单实例保护
@@ -69,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         db = Database()
+        trainer_dir = apply_trainer_dir(db)
         added = seed_if_needed(db)
         launcher = Launcher(db)
         win = MainWindow(db, launcher)
@@ -76,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         if added:
             win.lbl_status.setText(f"已载入内置修改器目录 {added} 条（元数据，需自行导入本体）")
         else:
-            win.lbl_status.setText("就绪")
+            win.lbl_status.setText(f"就绪 · 修改器库目录：{trainer_dir}")
         if db.get_setting("first_run_done", "0") != "1":
             db.set_setting("first_run_done", "1")
             AboutDialog(win).exec()

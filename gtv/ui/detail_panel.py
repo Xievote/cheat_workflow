@@ -57,7 +57,8 @@ class DetailPanel(QWidget):
         self.launcher = launcher
         self.t: Trainer | None = None
 
-        self.setMinimumWidth(330)
+        self.setMinimumWidth(320)
+        self.setMaximumWidth(460)
         self._build()
 
         self._timer = QTimer(self)
@@ -82,7 +83,7 @@ class DetailPanel(QWidget):
         titles = QVBoxLayout()
         titles.setSpacing(4)
         self.lbl_game = QLabel("未选择修改器")
-        self.lbl_game.setStyleSheet("font-size:16px; font-weight:700;")
+        self.lbl_game.setObjectName("titleBig")
         self.lbl_game.setWordWrap(True)
         titles.addWidget(self.lbl_game)
         self.lbl_sub = QLabel("从左侧选择一个修改器查看详情")
@@ -136,7 +137,7 @@ class DetailPanel(QWidget):
         sb.setContentsMargins(12, 10, 12, 10)
         sb.setSpacing(4)
         self.lbl_session = QLabel("未运行")
-        self.lbl_session.setStyleSheet("font-weight:600;")
+        self.lbl_session.setStyleSheet("QLabel{color:#6B7280; font-weight:600; background:transparent;}")
         sb.addWidget(self.lbl_session)
         self.lbl_session_sub = QLabel("")
         self.lbl_session_sub.setObjectName("muted")
@@ -144,7 +145,9 @@ class DetailPanel(QWidget):
         root.addWidget(self.session_box)
 
         # 功能 / 热键表
-        root.addWidget(QLabel("功能与热键（可双击编辑，自动保存）"))
+        sec1 = QLabel("功能与热键 · 双击编辑自动保存")
+        sec1.setObjectName("section")
+        root.addWidget(sec1)
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["热键", "功能", "备注"])
         self.table.verticalHeader().setVisible(False)
@@ -174,7 +177,9 @@ class DetailPanel(QWidget):
         root.addLayout(row)
 
         # 备注
-        root.addWidget(QLabel("备注"))
+        sec2 = QLabel("备注")
+        sec2.setObjectName("section")
+        root.addWidget(sec2)
         self.notes = QPlainTextEdit()
         self.notes.setPlaceholderText("记录使用该 Trainer 的注意事项，例如：需先启动游戏、某些选项会导致任务卡死…")
         self.notes.setFixedHeight(78)
@@ -182,7 +187,9 @@ class DetailPanel(QWidget):
         root.addWidget(self.notes)
 
         root.addWidget(HLine())
-        root.addWidget(QLabel("最近启动记录"))
+        sec3 = QLabel("最近启动记录")
+        sec3.setObjectName("section")
+        root.addWidget(sec3)
         self.recent = QListWidget()
         self.recent.setMaximumHeight(120)
         self.recent.itemDoubleClicked.connect(lambda _i: None)
@@ -438,14 +445,14 @@ class DetailPanel(QWidget):
             s = self.launcher.session(tid)
             el = self.launcher.elapsed(tid)
             self.lbl_session.setText(f"● 运行中（PID {s.pid if s else '-'}）")
-            self.lbl_session.setStyleSheet("color:#B26B00; font-weight:700;")
+            self.lbl_session.setStyleSheet("QLabel{color:#B26B00; font-weight:700; background:transparent;}")
             self.lbl_session_sub.setText(f"已运行 {human_duration(el)}　·　关闭本程序会一并结束进程")
             self.btn_launch.setText("停止")
             self.btn_launch.setObjectName("primary")
             self.btn_stop.setEnabled(True)
         else:
             self.lbl_session.setText("○ 未运行")
-            self.lbl_session.setStyleSheet("color:#6B7280; font-weight:600;")
+            self.lbl_session.setStyleSheet("QLabel{color:#6B7280; font-weight:600; background:transparent;}")
             last = self.t.last_run_at or "从未"
             self.lbl_session_sub.setText(f"上次启动：{last}　·　累计 {self.t.run_count} 次")
             self.btn_launch.setText("启动修改器")
