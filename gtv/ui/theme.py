@@ -32,8 +32,8 @@ def light_palette():
     p.setColor(QPalette.ColorRole.WindowText, QColor(PALETTE["text"]))
     p.setColor(QPalette.ColorRole.Base, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.AlternateBase, QColor("#FAFBFC"))
-    p.setColor(QPalette.ColorRole.ToolTipBase, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.ToolTipText, QColor(PALETTE["text"]))
+    p.setColor(QPalette.ColorRole.ToolTipBase, QColor(PALETTE["accent"]))
+    p.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.Text, QColor(PALETTE["text"]))
     p.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9AA3AF"))
     p.setColor(QPalette.ColorRole.Button, QColor("#FFFFFF"))
@@ -59,8 +59,9 @@ QSS = f"""
 }}
 QWidget#root, QMainWindow {{ background: {PALETTE['bg']}; color: {PALETTE['text']}; }}
 QToolTip {{
-    background:#FFFFFF; color:{PALETTE['text']};
-    border:1px solid {PALETTE['border']}; padding:4px 8px;
+    background:{PALETTE['accent']}; color:#FFFFFF;
+    border:1px solid #275ED4; border-radius:6px; padding:6px 10px;
+    font-size: 12px;
 }}
 
 /* ---- 面板 ---- */

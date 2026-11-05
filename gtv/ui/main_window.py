@@ -129,7 +129,10 @@ class MainWindow(QMainWindow):
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.container = QWidget()
-        self.container.setStyleSheet("background:transparent;")
+        # 注意：必须用带选择器的规则，裸样式（"background:transparent;"）
+        # 会级联污染所有卡片子控件，把"启动"按钮的蓝底覆盖成透明
+        self.container.setObjectName("gridHost")
+        self.container.setStyleSheet("QWidget#gridHost{background:transparent;}")
         self.flow = FlowLayout(self.container, hspace=12, vspace=12)
         self.container.setLayout(self.flow)
         self.scroll.setWidget(self.container)
@@ -153,7 +156,12 @@ class MainWindow(QMainWindow):
 
     def _build_toolbar(self) -> QWidget:
         bar = QWidget()
-        bar.setStyleSheet(f"background:{theme.PALETTE['panel']};border-bottom:1px solid {theme.PALETTE['border']};")
+        # 带选择器的规则：避免裸样式级联覆盖子按钮的 #primary 蓝底白字
+        bar.setObjectName("topBar")
+        bar.setStyleSheet(
+            f"QWidget#topBar{{background:{theme.PALETTE['panel']};"
+            f"border-bottom:1px solid {theme.PALETTE['border']};}}"
+        )
         h = QHBoxLayout(bar)
         h.setContentsMargins(16, 10, 16, 10)
         h.setSpacing(10)
