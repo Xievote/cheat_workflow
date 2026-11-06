@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QStatusBar,
     QSystemTrayIcon,
+    QTabWidget,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -37,10 +38,12 @@ from PySide6.QtWidgets import (
 from ..core import config
 from ..core.database import Database
 from ..core.launcher import Launcher
+from ..core.memory_engine import MemoryEngine
 from ..core.models import Trainer
 from . import theme
 from .detail_panel import DetailPanel
 from .dialogs import AboutDialog, EditDialog, RecordsDialog, SettingsDialog
+from .memory_page import MemoryPage
 from .trainer_card import TrainerCard
 from .widgets import (
     FlowLayout,
@@ -111,7 +114,8 @@ class MainWindow(QMainWindow):
         lv.addWidget(self.lbl_stat_side)
         splitter.addWidget(left)
 
-        # 中：卡片网格
+        # 中：双标签（修改器库卡片网格 / 内存修改）
+        self.tabs = QTabWidget()
         mid = QWidget()
         mv = QVBoxLayout(mid)
         mv.setContentsMargins(14, 12, 14, 12)
@@ -137,7 +141,15 @@ class MainWindow(QMainWindow):
         self.container.setLayout(self.flow)
         self.scroll.setWidget(self.container)
         mv.addWidget(self.scroll, 1)
-        splitter.addWidget(mid)
+
+        self.mem_engine = MemoryEngine(self)
+        self.mem_page = MemoryPage(self.db, self.mem_engine)
+        self.mem_page.activity.connect(lambda m: self.lbl_status.setText(m))
+        self.mem_page.request_tab_switch.connect(lambda: self.tabs.setCurrentWidget(self.mem_page))
+
+        self.tabs.addTab(mid, "修改器库")
+        self.tabs.addTab(self.mem_page, "内存修改")
+        splitter.addWidget(self.tabs)
 
         # 右：详情
         self.detail = DetailPanel(self.db, self.launcher, self)
@@ -368,6 +380,7 @@ class MainWindow(QMainWindow):
         self.selected_id = tid
         t = self.db.get_trainer(tid)
         self.detail.set_trainer(t)
+        self.mem_page.set_trainer(t)
 
     def refresh_card(self, tid: int) -> None:
         card = self.cards.get(tid)
@@ -519,6 +532,12 @@ class MainWindow(QMainWindow):
         self._update_running_label()
         if self.selected_id == tid:
             self.detail._refresh_session()
+        # 游戏启动后自动附加内存引擎（延迟等待选中状态同步完成）
+        def _try_attach() -> None:
+            if self.mem_page.t and (self.mem_page.t.id or 0) == tid:
+                self.mem_page.auto_attach_pid(pid)
+
+        QTimer.singleShot(500, _try_attach)
 
     def _on_ended(self, tid: int, code: int) -> None:
         self.refresh_card(tid)
@@ -571,11 +590,13 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self.stop_all()
+        self.mem_engine.detach()
         self.db.close()
         event.accept()
 
     def quit_app(self) -> None:
         self.stop_all()
+        self.mem_engine.detach()
         self.db.close()
         QApplication.quit()
 

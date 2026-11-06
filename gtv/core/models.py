@@ -143,6 +143,96 @@ class Trainer:
 
 
 @dataclass
+class MemoryEntry:
+    """一条内存地址配置：由用户在 Cheat Engine 中找到地址后录入。
+
+    地址写法（addr 字段）：
+    * 绝对地址：      "7FF6A1B2C3D0" 或 "0x7FF6A1B2C3D0"
+    * 模块+偏移：     "game.exe+1A2B3C"（推荐，游戏重启后依然有效）
+
+    offsets 字段为指针偏移链（十六进制，如 [0x10, 0x4]），可为空。
+    解析规则（与 Cheat Engine 一致）：
+      最终地址 = *(基地址 + 模块偏移) + offset1 → 再解引用 + offset2 …
+    """
+
+    DTYPES = ("int32", "int64", "int16", "byte", "float", "double")
+    CONTROLS = ("slider", "spin", "button", "toggle")
+
+    id: int | None = None
+    trainer_id: int | None = None
+    name: str = ""             # 显示名，如 "金币" / "血量"
+    addr: str = ""             # 基地址（见上文写法）
+    offsets: list[int] = field(default_factory=list)   # 指针偏移链
+    dtype: str = "int32"       # int32/int64/int16/byte/float/double
+    control: str = "spin"      # slider/spin/button/toggle
+    value: str = "999"         # button 写入值 / toggle 开启值（关闭固定写 0）
+    minv: float = 0            # slider/spin 下限
+    maxv: float = 100          # slider/spin 上限
+    step: float = 1            # slider/spin 步长
+    note: str = ""
+    enabled: bool = True
+    sort: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+
+    def to_row(self) -> dict:
+        return {
+            "trainer_id": self.trainer_id,
+            "name": self.name,
+            "addr": self.addr.strip(),
+            "offsets": dumps([hex(o) for o in self.offsets]),
+            "dtype": self.dtype,
+            "control": self.control,
+            "value": self.value,
+            "minv": self.minv,
+            "maxv": self.maxv,
+            "step": self.step or 1,
+            "note": self.note,
+            "enabled": int(self.enabled),
+            "sort": self.sort,
+            "created_at": self.created_at or _now(),
+            "updated_at": _now(),
+        }
+
+    @staticmethod
+    def from_row(row) -> "MemoryEntry":
+        g = rowget
+        offs_raw = loads(g(row, "offsets"), []) or []
+        offsets: list[int] = []
+        for o in offs_raw:
+            try:
+                offsets.append(int(str(o), 16))
+            except (ValueError, TypeError):
+                continue
+        return MemoryEntry(
+            id=g(row, "id"),
+            trainer_id=g(row, "trainer_id"),
+            name=g(row, "name", "") or "",
+            addr=g(row, "addr", "") or "",
+            offsets=offsets,
+            dtype=g(row, "dtype", "int32") or "int32",
+            control=g(row, "control", "spin") or "spin",
+            value=str(g(row, "value", "") or ""),
+            minv=float(g(row, "minv", 0) or 0),
+            maxv=float(g(row, "maxv", 100) or 100),
+            step=float(g(row, "step", 1) or 1),
+            note=g(row, "note", "") or "",
+            enabled=bool(g(row, "enabled", 1)),
+            sort=int(g(row, "sort", 0) or 0),
+            created_at=g(row, "created_at", "") or "",
+            updated_at=g(row, "updated_at", "") or "",
+        )
+
+    @property
+    def addr_display(self) -> str:
+        """给 UI 显示的完整地址描述。"""
+        s = self.addr
+        if self.offsets:
+            s += " → " + " → ".join(hex(o) for o in self.offsets)
+        return s
+
+
+@dataclass
 class LaunchRecord:
     """一次启动记录。"""
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Iterable
 
 from . import config
-from .models import LaunchRecord, Trainer, _now
+from .models import LaunchRecord, MemoryEntry, Trainer, _now
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -59,6 +59,27 @@ CREATE TABLE IF NOT EXISTS launch_records (
     FOREIGN KEY(trainer_id) REFERENCES trainers(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_records_trainer ON launch_records(trainer_id);
+
+CREATE TABLE IF NOT EXISTS memory_entries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    trainer_id  INTEGER NOT NULL,
+    name        TEXT NOT NULL DEFAULT '',
+    addr        TEXT NOT NULL DEFAULT '',
+    offsets     TEXT NOT NULL DEFAULT '[]',
+    dtype       TEXT NOT NULL DEFAULT 'int32',
+    control     TEXT NOT NULL DEFAULT 'spin',
+    value       TEXT NOT NULL DEFAULT '',
+    minv        REAL NOT NULL DEFAULT 0,
+    maxv        REAL NOT NULL DEFAULT 100,
+    step        REAL NOT NULL DEFAULT 1,
+    note        TEXT NOT NULL DEFAULT '',
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT '',
+    updated_at  TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(trainer_id) REFERENCES trainers(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_mem_trainer ON memory_entries(trainer_id);
 
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -144,6 +165,7 @@ class Database:
 
     def delete_trainer(self, tid: int) -> None:
         self._exec("DELETE FROM launch_records WHERE trainer_id=?", (tid,))
+        self._exec("DELETE FROM memory_entries WHERE trainer_id=?", (tid,))
         self._exec("DELETE FROM trainers WHERE id=?", (tid,))
 
     def toggle_favorite(self, tid: int) -> bool:
@@ -245,6 +267,40 @@ class Database:
             "records": runs,
             "runs": total_run,
         }
+
+    # ------------------------------------------------------------ 内存地址
+    def list_memory(self, trainer_id: int) -> list[MemoryEntry]:
+        rows = self._query(
+            "SELECT * FROM memory_entries WHERE trainer_id=? ORDER BY sort, id",
+            (trainer_id,),
+        )
+        return [MemoryEntry.from_row(r) for r in rows]
+
+    def add_memory(self, e: MemoryEntry) -> int:
+        row = e.to_row()
+        cols = ", ".join(row.keys())
+        marks = ", ".join("?" for _ in row)
+        cur = self._exec(f"INSERT INTO memory_entries({cols}) VALUES({marks})", row.values())
+        return int(cur.lastrowid)
+
+    def update_memory(self, e: MemoryEntry) -> None:
+        if not e.id:
+            raise ValueError("memory entry id 为空，无法更新")
+        row = e.to_row()
+        row.pop("created_at", None)
+        row.pop("trainer_id", None)
+        sets = ", ".join(f"{k}=?" for k in row.keys())
+        self._exec(f"UPDATE memory_entries SET {sets} WHERE id=?", (*row.values(), e.id))
+
+    def delete_memory(self, eid: int) -> None:
+        self._exec("DELETE FROM memory_entries WHERE id=?", (eid,))
+
+    def count_memory(self, trainer_id: int) -> int:
+        return int(
+            self._query(
+                "SELECT COUNT(*) c FROM memory_entries WHERE trainer_id=?", (trainer_id,)
+            )[0]["c"]
+        )
 
     # ------------------------------------------------------------ 记录
     def add_record(self, rec: LaunchRecord) -> int:
