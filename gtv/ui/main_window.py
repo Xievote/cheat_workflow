@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
 
         logo = QLabel("GTV")
         logo.setStyleSheet(
-            f"QLabel{{font-size:18px; font-weight:800; color:{theme.PALETTE['accent']};"
+            f"QLabel{{font-size:18px; font-weight:800; color:{theme.PALETTE['accent_bright']};"
             "letter-spacing:1px; background:transparent;}"
         )
         h.addWidget(logo)

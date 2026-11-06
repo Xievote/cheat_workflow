@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from gtv.core.database import Database  # noqa: E402
@@ -35,6 +36,13 @@ GAMES = [
 
 def main() -> int:
     app = QApplication(sys.argv)
+    # 与真实启动一致：全局安装调色板 + 样式表（否则原生控件（表头等）会用系统浅色主题，截图失真）
+    from gtv.ui import theme
+
+    app.setStyle("Fusion")
+    app.setPalette(theme.app_palette())
+    app.setStyleSheet(theme.style_sheet())
+
     tmpdir = tempfile.mkdtemp(prefix="gtv-shot-")
     db = Database(Path(tmpdir) / "preview.db")
 
@@ -84,6 +92,30 @@ def main() -> int:
         app.processEvents()
     win.grab().save(str(out / "preview_detail.png"))
 
+    # 地址行特写：从整窗截图裁剪（host 是透明容器，直接 grab 会失去深色底）
+    full = win.grab()
+    rows = win.detail.rows
+    if rows:
+        tl = rows[0].mapTo(win, rows[0].rect().topLeft())
+        crop = full.copy(
+            max(0, tl.x() - 12),
+            max(0, tl.y() - 10),
+            rows[0].width() + 24,
+            rows[0].height() * len(rows) + 40,
+        )
+        crop.save(str(out / "preview_rows.png"))
+
+    # 键盘焦点态：Tab 到「+ 新增地址」时的 2px 亮环
+    win.detail.btn_add.setFocus(Qt.FocusReason.TabFocusReason)
+    app.processEvents()
+    win.grab().save(str(out / "preview_focus.png"))
+
+    # 窄屏（1280×800，常见笔记本分辨率）
+    win.resize(1280, 800)
+    for _ in range(4):
+        app.processEvents()
+    win.grab().save(str(out / "preview_detail_1280.png"))
+
     # 新增地址对话框（表单控件视觉检查）
     from gtv.core.models import Trainer as _T  # noqa: F401
     from gtv.ui.memory_dialog import MemoryEntryDialog
@@ -100,6 +132,9 @@ def main() -> int:
 
     print("saved:", out / "preview_library.png")
     print("saved:", out / "preview_detail.png")
+    print("saved:", out / "preview_rows.png")
+    print("saved:", out / "preview_focus.png")
+    print("saved:", out / "preview_detail_1280.png")
     db.close()
     return 0
 

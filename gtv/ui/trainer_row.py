@@ -82,8 +82,10 @@ class TrainerRow(QFrame):
 
         self.btn_fav = QPushButton("☆")
         self.btn_fav.setObjectName("ghost")
-        self.btn_fav.setFixedSize(28, 26)
+        self.btn_fav.setFixedSize(28, 28)
+        self.btn_fav.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_fav.setToolTip("收藏 / 取消收藏")
+        self.btn_fav.setAccessibleName("收藏该修改器")
         self.btn_fav.clicked.connect(lambda: self.favorite_toggled.emit(self.t.id or 0))
         root.addWidget(self.btn_fav, 0)
 

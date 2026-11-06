@@ -179,15 +179,17 @@ class EntryRow(QFrame):
             self.lbl_name.setText(f"{entry.name}（已停用）")
         root.addLayout(left, 2)
 
-        # ---- 当前值
+        # ---- 当前值（等宽、右对齐、定宽：数字位数变化不会推挤控件）
         self.lbl_value = QLabel("—")
         f = QFont("Consolas")
         f.setStyleHint(QFont.StyleHint.Monospace)
         f.setPointSize(12)
         f.setBold(True)
         self.lbl_value.setFont(f)
-        self.lbl_value.setMinimumWidth(96)
-        self.lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_value.setFixedWidth(112)
+        self.lbl_value.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
         self.lbl_value.setStyleSheet(_VALUE_STYLE)
         self.lbl_value.setToolTip("实时读取到的当前值（每 0.5 秒刷新）")
         root.addWidget(self.lbl_value, 0)
@@ -210,22 +212,28 @@ class EntryRow(QFrame):
         self._build_control()
         root.addWidget(self._ctl_host, 3)
 
-        # ---- 编辑 / 删除
-        ops = QVBoxLayout()
-        ops.setSpacing(2)
-        b_edit = QPushButton("编辑")
-        b_edit.setObjectName("ghost")
-        b_edit.setFixedWidth(44)
+        # ---- 编辑 / 删除：28×28 图标按钮（竖向排布会挤成 20px 高的小目标）
+        ops = QHBoxLayout()
+        ops.setSpacing(4)
+        b_edit = QPushButton("✎")
+        b_edit.setObjectName("iconBtn")
+        b_edit.setFixedSize(28, 28)
+        b_edit.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_edit.setToolTip("编辑这个地址的配置")
+        b_edit.setAccessibleName(f"编辑地址：{entry.name}")
         b_edit.clicked.connect(self._edit)
-        b_del = QPushButton("删除")
-        b_del.setObjectName("ghost")
-        b_del.setFixedWidth(44)
+        b_del = QPushButton("✕")
+        b_del.setObjectName("iconBtnDanger")
+        b_del.setFixedSize(28, 28)
+        b_del.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_del.setToolTip("从列表中删除这个地址")
+        b_del.setAccessibleName(f"删除地址：{entry.name}")
         b_del.clicked.connect(self._del)
         ops.addWidget(b_edit)
         ops.addWidget(b_del)
         root.addLayout(ops, 0)
 
-        self.setFixedHeight(84)
+        self.setFixedHeight(76)
 
     # ------------------------------------------------------------ 控件生成
     def _build_control(self) -> None:

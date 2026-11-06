@@ -4,8 +4,9 @@
 * 背景在 QMainWindow / QDialog 上画对角深蓝渐变，营造氛围光；
 * 面板用 rgba 半透明白叠加在渐变上，形成"类毛玻璃"层次；
 * QPalette 同步为深色，防止系统浅色模式下出现"黑底黑字"；
-* QComboBox / QSpinBox / QDoubleSpinBox 的箭头全部用 CSS 三角自绘，
-  不依赖系统图元（修复 Windows 下箭头渲染成小方块/残缺的问题）。
+* QComboBox / QSpinBox / QDoubleSpinBox 的箭头用 QPainter 绘制的真实 PNG，
+  不依赖系统图元（修复 Windows 下箭头渲染成小方块/残缺的问题）；
+* 主按钮渐变两端对白字均满足 WCAG AA（≥4.5:1），键盘焦点统一用 2px 亮蓝环。
 """
 from __future__ import annotations
 
@@ -15,11 +16,17 @@ PALETTE = {
     "panel": "#151D33",
     "border": "#27324E",
     "text": "#E7EDF8",
-    "muted": "#8C99B4",
-    "accent": "#3E8BFF",
-    "accent2": "#7C5CFF",      # 渐变辅色（wemod 风格蓝→紫）
+    "muted": "#A8B4CC",        # 次级文字：玻璃面板最亮处仍有 5.5:1（原 #8C99B4 仅 4.05:1）
+    # 主色按 WCAG AA 压暗：白字对比 4.63:1（原 #3E8BFF 仅 3.49:1）
+    "accent": "#2F6FE6",
+    "accent2": "#6A45E8",      # 渐变终点：白字 5.79:1
+    # hover / pressed 只压暗不提亮（提亮会让白字掉到 4:1 以下）
+    "accent_hover": "#2A64D6",
+    "accent2_hover": "#5F3BDD",
+    "accent_bright": "#6FA8FF",  # 深底上的强调文字/图标（7.9:1）
     "accent_soft": "#1B2C4F",
-    "danger": "#F16A6A",
+    "focus": "#7FB0FF",        # 键盘焦点环
+    "danger": "#FF8B8B",       # 深底上 5.1:1（原 #F16A6A 仅 3.91:1）
     "warn": "#E8A33D",
     "ok": "#34D399",
     "chip": "#1D2740",
@@ -50,7 +57,7 @@ def app_palette():
     p.setColor(QPalette.ColorRole.ToolTipBase, QColor(PALETTE["accent"]))
     p.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.Text, QColor(PALETTE["text"]))
-    p.setColor(QPalette.ColorRole.PlaceholderText, QColor("#5D6B87"))
+    p.setColor(QPalette.ColorRole.PlaceholderText, QColor("#8593B0"))
     p.setColor(QPalette.ColorRole.Button, QColor("#1A2340"))
     p.setColor(QPalette.ColorRole.ButtonText, QColor(PALETTE["text"]))
     p.setColor(QPalette.ColorRole.BrightText, QColor("#FFFFFF"))
@@ -119,7 +126,33 @@ def _arrow_images() -> dict[str, str]:
         "down_hover": draw("down_hover.png", 10, 6, "down", "#D5E1F7"),
         "up": draw("up.png", 8, 5, "up", "#9FB0D0"),
         "up_hover": draw("up_hover.png", 8, 5, "up", "#D5E1F7"),
+        "check": _check_image(cache),
     }
+
+
+def _check_image(cache) -> str:
+    """复选框选中态的白色对勾（Qt 不会自动画 tick，只有纯色块无法判断状态）。"""
+    from PySide6.QtCore import QPointF, Qt as _Qt
+    from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
+
+    path = cache / "check.png"
+    if not path.exists():
+        pm = QPixmap(14, 14)  # 与 indicator 内容区一致，避免被拉伸
+        pm.fill(_Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor("#FFFFFF"))
+        pen.setWidthF(2.2)
+        pen.setCapStyle(_Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(_Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        qp = QPainterPath(QPointF(3.2, 7.2))
+        qp.lineTo(QPointF(5.7, 10.0))
+        qp.lineTo(QPointF(10.8, 3.8))
+        p.drawPath(qp)
+        p.end()
+        pm.save(str(path))
+    return f"url('{path.as_posix()}')"
 
 
 QSS = f"""
@@ -184,10 +217,17 @@ QLineEdit:hover, QTextEdit:hover, QPlainTextEdit:hover,
 QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {{
     border-color: {GLASS['border_strong']};
 }}
+/* 键盘焦点：2px 亮蓝环 + 底色提亮；padding 减 1px 抵消边框增宽，避免内容跳动 */
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
-QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
-    border-color: {PALETTE['accent']};
-    background: rgba(8, 14, 30, 190);
+QComboBox:focus, QDateEdit:focus {{
+    border: 2px solid {PALETTE['focus']};
+    padding: 5px 9px;
+    background: rgba(8, 14, 30, 200);
+}}
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    border: 2px solid {PALETTE['focus']};
+    padding: 5px 23px 5px 9px;   /* 右侧留出加减按钮区 */
+    background: rgba(8, 14, 30, 200);
 }}
 QLineEdit:disabled, QTextEdit:disabled, QComboBox:disabled,
 QSpinBox:disabled, QDoubleSpinBox:disabled {{
@@ -249,6 +289,7 @@ QPushButton {{
     background: {GLASS['field']}; color: {PALETTE['text']};
     border: 1px solid {GLASS['border']};
     border-radius: 8px; padding: 7px 14px; font-size: 13px;
+    min-height: 16px;   /* 内容 16 + padding 14 + 边框 2 = 32px 点击高度 */
 }}
 QPushButton:hover {{ background:{GLASS['panel_hover']}; border-color:{GLASS['border_strong']}; }}
 QPushButton:pressed {{ background: rgba(255, 255, 255, 40); }}
@@ -259,16 +300,48 @@ QPushButton#primary {{
     color:#FFFFFF;
     border:1px solid rgba(255,255,255,40); font-weight:600;
 }}
+/* hover 走"压深 + 亮边"，不提亮渐变：提亮后白字会跌到 4:1 以下 */
 QPushButton#primary:hover {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 #5AA0FF, stop:1 #9177FF);
+        stop:0 {PALETTE['accent_hover']}, stop:1 {PALETTE['accent2_hover']});
+    border-color: rgba(255,255,255,96);
 }}
-QPushButton#primary:pressed {{ background:{PALETTE['accent']}; }}
+QPushButton#primary:pressed {{ background:{PALETTE['accent_hover']}; }}
+QPushButton#primary:focus {{
+    border:2px solid #CFE0FF; padding:6px 13px;
+}}
 QPushButton#primary:disabled {{ background:#33406B; color:#8A96B4; border-color:#33406B; }}
 QPushButton#danger {{ color:{PALETTE['danger']}; border-color:rgba(241,106,106,110); background:rgba(241,106,106,24); }}
 QPushButton#danger:hover {{ background:rgba(241,106,106,46); }}
+QPushButton#danger:focus {{ border:2px solid {PALETTE['focus']}; padding:6px 13px; }}
 QPushButton#ghost {{ border:1px solid transparent; background:transparent; padding:4px 8px; color:{PALETTE['muted']}; }}
 QPushButton#ghost:hover {{ background:rgba(255,255,255,24); color:{PALETTE['text']}; }}
+QPushButton#ghost:focus {{
+    border:1px solid {PALETTE['focus']}; color:{PALETTE['text']};
+    background: rgba(127,176,255,26);
+}}
+QPushButton:focus {{ border:2px solid {PALETTE['focus']}; padding:6px 13px; }}
+
+/* ---- 图标按钮：28×28 点击区，图标 + tooltip 双通道 ---- */
+QPushButton#iconBtn, QPushButton#iconBtnDanger {{
+    padding:0; font-size:14px; border-radius:8px;
+    background:transparent; border:1px solid transparent;
+}}
+QPushButton#iconBtn {{ color:{PALETTE['muted']}; }}
+QPushButton#iconBtn:hover {{
+    background:rgba(255,255,255,26); color:{PALETTE['text']};
+    border-color:rgba(255,255,255,46);
+}}
+QPushButton#iconBtn:pressed {{ background:rgba(255,255,255,46); }}
+QPushButton#iconBtnDanger {{ color:#FF9A9A; }}
+QPushButton#iconBtnDanger:hover {{
+    background:rgba(241,106,106,40); color:#FFC9C9;
+    border-color:rgba(241,106,106,120);
+}}
+QPushButton#iconBtnDanger:pressed {{ background:rgba(241,106,106,64); }}
+QPushButton#iconBtn:focus, QPushButton#iconBtnDanger:focus {{
+    border:2px solid {PALETTE['focus']};
+}}
 
 /* ---- 单选 / 复选 ---- */
 QRadioButton, QCheckBox {{ color: {PALETTE['text']}; spacing: 7px; background: transparent; }}
@@ -278,7 +351,14 @@ QRadioButton::indicator, QCheckBox::indicator {{
 }}
 QRadioButton::indicator {{ border-radius: 8px; }}
 QRadioButton::indicator:checked, QCheckBox::indicator:checked {{
-    background: {PALETTE['accent']}; border-color: {PALETTE['accent']};
+    background: {PALETTE['accent']}; border-color: {PALETTE['accent_bright']};
+}}
+/* Qt 不会自动画对勾，选中态补一张白色 tick，避免"纯色块=已开启"无法确认 */
+QCheckBox::indicator:checked {{ image: @@CHECK@@; }}
+/* 焦点：整行淡蓝底晕。注意不要写 QCheckBox:focus::indicator —— Qt 会忽略
+   subcontrol 前的 :focus 伪状态，把边框泄漏给所有未聚焦的复选框 */
+QCheckBox:focus, QRadioButton:focus {{
+    background: rgba(127,176,255,26); border-radius:6px; color:#FFFFFF;
 }}
 QRadioButton::indicator:checked {{
     background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
@@ -333,6 +413,11 @@ QSlider::handle:horizontal {{
     border: 1px solid {PALETTE['accent']};
 }}
 QSlider::handle:horizontal:hover {{ background: #FFFFFF; }}
+/* 焦点：底层淡蓝晕（不改边框，避免 1px 位移把 16px 手柄挤到裁切） */
+QSlider:focus {{
+    background: rgba(127,176,255,30);
+    border-radius: 9px;
+}}
 
 /* ---- Tab ---- */
 QTabWidget::pane {{
