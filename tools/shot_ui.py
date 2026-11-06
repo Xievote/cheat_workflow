@@ -84,6 +84,20 @@ def main() -> int:
         app.processEvents()
     win.grab().save(str(out / "preview_detail.png"))
 
+    # 新增地址对话框（表单控件视觉检查）
+    from gtv.core.models import Trainer as _T  # noqa: F401
+    from gtv.ui.memory_dialog import MemoryEntryDialog
+
+    t_first = db.get_trainer(first_tid)
+    dlg = MemoryEntryDialog(t_first.game_title or t_first.title, None, win)
+    dlg.resize(560, 560)
+    dlg.show()
+    for _ in range(3):
+        app.processEvents()
+    dlg.grab().save(str(out / "preview_memory_dialog.png"))
+    dlg.close()
+    print("saved:", out / "preview_memory_dialog.png")
+
     print("saved:", out / "preview_library.png")
     print("saved:", out / "preview_detail.png")
     db.close()

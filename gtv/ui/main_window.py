@@ -121,7 +121,9 @@ class MainWindow(QMainWindow):
         mv.setSpacing(8)
         head = QHBoxLayout()
         self.lbl_view = QLabel("全部修改器")
-        self.lbl_view.setStyleSheet("QLabel{font-size:15px; font-weight:700; color:#1F2430; background:transparent;}")
+        self.lbl_view.setStyleSheet(
+            f"QLabel{{font-size:15px; font-weight:700; color:{theme.PALETTE['text']}; background:transparent;}}"
+        )
         head.addWidget(self.lbl_view, 1)
         self.lbl_count = QLabel("")
         self.lbl_count.setObjectName("muted")
@@ -168,18 +170,21 @@ class MainWindow(QMainWindow):
 
     def _build_toolbar(self) -> QWidget:
         bar = QWidget()
-        # 带选择器的规则：避免裸样式级联覆盖子按钮的 #primary 蓝底白字
+        # 带选择器的规则：避免裸样式级联覆盖子按钮的 #primary 渐变蓝底
         bar.setObjectName("topBar")
         bar.setStyleSheet(
-            f"QWidget#topBar{{background:{theme.PALETTE['panel']};"
-            f"border-bottom:1px solid {theme.PALETTE['border']};}}"
+            "QWidget#topBar{background:rgba(255,255,255,16);"
+            "border-bottom:1px solid rgba(255,255,255,28);}"
         )
         h = QHBoxLayout(bar)
         h.setContentsMargins(16, 10, 16, 10)
         h.setSpacing(10)
 
         logo = QLabel("GTV")
-        logo.setStyleSheet("QLabel{font-size:18px; font-weight:800; color:#2F6FEB; letter-spacing:1px; background:transparent;}")
+        logo.setStyleSheet(
+            f"QLabel{{font-size:18px; font-weight:800; color:{theme.PALETTE['accent']};"
+            "letter-spacing:1px; background:transparent;}"
+        )
         h.addWidget(logo)
         sub = QLabel("单机游戏修改器管理器")
         sub.setObjectName("muted")
@@ -227,14 +232,17 @@ class MainWindow(QMainWindow):
             return
         pm = QPixmap(64, 64)
         pm.fill(Qt.GlobalColor.transparent)
-        from PySide6.QtGui import QPainter
+        from PySide6.QtGui import QPainter, QLinearGradient
 
         p = QPainter(pm)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setBrush(Qt.GlobalColor.white)
+        g = QLinearGradient(0, 0, 64, 64)
+        g.setColorAt(0, QColor(theme.PALETTE["accent"]))
+        g.setColorAt(1, QColor(theme.PALETTE["accent2"]))
+        p.setBrush(g)
         p.setPen(Qt.PenStyle.NoPen)
         p.drawRoundedRect(0, 0, 64, 64, 14, 14)
-        p.setPen(QColor("#2F6FEB"))
+        p.setPen(QColor("#FFFFFF"))
         p.setFont(QFont("Microsoft YaHei UI", 20, QFont.Weight.Bold))
         p.drawText(0, 0, 64, 64, Qt.AlignmentFlag.AlignCenter, "G")
         p.end()

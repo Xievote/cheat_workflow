@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..core.models import Trainer
+from . import theme
 from .widgets import CoverLabel, cached_color
 
 ROW_H = 72
@@ -56,12 +57,12 @@ class TrainerRow(QFrame):
         mid.setSpacing(2)
         self.lbl_title = QLabel("")
         self.lbl_title.setStyleSheet(
-            "QLabel{font-size:14px; font-weight:700; color:#1F2430; background:transparent;}"
+            f"QLabel{{font-size:14px; font-weight:700; color:{theme.PALETTE['text']}; background:transparent;}}"
         )
         mid.addWidget(self.lbl_title)
         self.lbl_sub = QLabel("")
         self.lbl_sub.setStyleSheet(
-            "QLabel{font-size:11px; color:#6B7280; background:transparent;}"
+            f"QLabel{{font-size:11px; color:{theme.PALETTE['muted']}; background:transparent;}}"
         )
         mid.addWidget(self.lbl_sub)
         root.addLayout(mid, 1)
@@ -76,7 +77,7 @@ class TrainerRow(QFrame):
         root.addWidget(self.lbl_state, 0)
 
         self.lbl_runs = QLabel("")
-        self.lbl_runs.setStyleSheet("QLabel{font-size:12px; color:#9AA3AF; background:transparent;}")
+        self.lbl_runs.setStyleSheet(f"QLabel{{font-size:12px; color:{theme.PALETTE['muted']}; background:transparent;}}")
         root.addWidget(self.lbl_runs, 0)
 
         self.btn_fav = QPushButton("☆")
@@ -118,17 +119,17 @@ class TrainerRow(QFrame):
 
         if t.installed:
             self.lbl_state.setText("● 已导入")
-            self.lbl_state.setStyleSheet("QLabel{color:#2E9E5B; font-size:12px; font-weight:600; background:transparent;}")
+            self.lbl_state.setStyleSheet(f"QLabel{{color:{theme.PALETTE['ok']}; font-size:12px; font-weight:600; background:transparent;}}")
         else:
             self.lbl_state.setText("○ 待导入")
-            self.lbl_state.setStyleSheet("QLabel{color:#B26B00; font-size:12px; font-weight:600; background:transparent;}")
+            self.lbl_state.setStyleSheet(f"QLabel{{color:{theme.PALETTE['warn']}; font-size:12px; font-weight:600; background:transparent;}}")
 
         self.lbl_runs.setText(f"运行 {t.run_count} 次")
         self.btn_fav.setText("★" if t.favorite else "☆")
         self.btn_fav.setStyleSheet(
-            "QPushButton{color:#E8B400; font-size:15px; border:none; background:transparent;}"
+            "QPushButton{color:#F5C860; font-size:15px; border:none; background:transparent;}"
             if t.favorite
-            else "QPushButton{color:#9AA3AF; font-size:15px; border:none; background:transparent;}"
+            else f"QPushButton{{color:{theme.PALETTE['muted']}; font-size:15px; border:none; background:transparent;}}"
         )
 
     def set_selected(self, on: bool) -> None:
@@ -137,19 +138,23 @@ class TrainerRow(QFrame):
     def _apply(self, on: bool) -> None:
         if on:
             self.setStyleSheet(
-                "QFrame#panel{background:#F0F5FF;border:2px solid #2F6FEB;border-radius:12px;}"
+                "QFrame#panel{"
+                "background:rgba(62,139,255,44);"
+                "border:2px solid #5AA0FF;border-radius:12px;}"
             )
         else:
             self.setStyleSheet(
-                "QFrame#panel{background:#FFFFFF;border:1px solid #E2E5EA;border-radius:12px;}"
-                "QFrame#panel:hover{border:1px solid #BDC7D6;background:#FDFEFF;}"
+                "QFrame#panel{background:rgba(255,255,255,18);"
+                "border:1px solid rgba(255,255,255,30);border-radius:12px;}"
+                "QFrame#panel:hover{border:1px solid rgba(255,255,255,72);background:rgba(255,255,255,30);}"
             )
 
     def set_running(self, running: bool, elapsed: int = 0) -> None:
         if running:
             self.btn_run.setText("运行中")
             self.btn_run.setStyleSheet(
-                "background:#FFF6E6;color:#B26B00;border:1px solid #F3DCA8;border-radius:8px;font-weight:600;"
+                "background:rgba(232,163,61,40);color:#E8A33D;"
+                "border:1px solid rgba(232,163,61,120);border-radius:8px;font-weight:600;"
             )
             self.btn_run.setToolTip(f"已运行 {elapsed}s，点击停止")
         else:

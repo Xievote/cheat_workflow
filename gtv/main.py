@@ -21,7 +21,7 @@ from gtv.core.database import Database  # noqa: E402
 from gtv.core.launcher import Launcher  # noqa: E402
 from gtv.ui.dialogs import AboutDialog  # noqa: E402
 from gtv.ui.main_window import MainWindow  # noqa: E402
-from gtv.ui.theme import light_palette, style_sheet  # noqa: E402
+from gtv.ui.theme import app_palette, style_sheet  # noqa: E402
 
 
 def apply_trainer_dir(db: Database) -> str:
@@ -73,8 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName(config.APP_NAME)
     app.setApplicationDisplayName(config.APP_TITLE)
     app.setStyle("Fusion")
-    # 关键：强制浅色调色板，避免深色系统下出现"白底白字"
-    app.setPalette(light_palette())
+    # 关键：强制深色调色板，与毛玻璃主题同步，避免系统浅色模式出现"黑底黑字"
+    app.setPalette(app_palette())
     app.setStyleSheet(style_sheet())
 
     # 单实例保护

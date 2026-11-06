@@ -126,10 +126,10 @@ class EditDialog(QDialog):
 
 
 STATUS_STYLE = {
-    "running": ("运行中", "#B26B00"),
-    "finished": ("正常结束", "#2E9E5B"),
-    "killed": ("被终止", "#6B7280"),
-    "failed": ("异常退出", "#D64545"),
+    "running": ("运行中", "#E8A33D"),
+    "finished": ("正常结束", "#34D399"),
+    "killed": ("被终止", "#8C99B4"),
+    "failed": ("异常退出", "#F16A6A"),
 }
 
 
@@ -193,7 +193,7 @@ class RecordsDialog(QDialog):
             row = self.table.rowCount()
             self.table.insertRow(row)
             total_sec += r.duration_sec
-            text, color = STATUS_STYLE.get(r.status, (r.status, "#6B7280"))
+            text, color = STATUS_STYLE.get(r.status, (r.status, "#8C99B4"))
             vals = [
                 r.started_at,
                 r.trainer_title or str(r.trainer_id or "-"),

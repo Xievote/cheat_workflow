@@ -183,7 +183,7 @@ class HLine(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.HLine)
-        self.setStyleSheet("color:#E2E5EA;")
+        self.setStyleSheet("color:rgba(255,255,255,44);")
 
 
 def elide(text: str, width: int, font: QFont) -> str:

@@ -57,7 +57,7 @@ class MemoryEntryDialog(QDialog):
     def __init__(self, trainer_title: str, entry: MemoryEntry | None = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"内存地址 · {trainer_title}")
-        self.resize(480, 520)
+        self.resize(560, 560)
         self._orig = entry
         self._build()
 
@@ -80,7 +80,8 @@ class MemoryEntryDialog(QDialog):
         v.addWidget(tip)
 
         f = QFormLayout()
-        f.setSpacing(8)
+        f.setSpacing(10)
+        f.setContentsMargins(0, 4, 0, 0)
 
         self.e_name = QLineEdit()
         self.e_name.setPlaceholderText("如：金币 / 血量 / 无限弹药")

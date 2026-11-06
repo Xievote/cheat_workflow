@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
 from ..core import config
 from ..core.memory_engine import MemoryEngine
 from ..core.models import MemoryEntry, Option, Trainer, human_duration
+from . import theme
 from .memory_dialog import MemoryEntryDialog
 from .widgets import ChipLabel, CoverLabel, HLine, confirm, open_local_path, reveal_in_explorer
 
@@ -54,9 +55,9 @@ CONTROL_CHOICES = [
     ("button", "按钮"),
     ("toggle", "开关"),
 ]
-_VALUE_STYLE = "QLabel{color:#1F2430; background:#F3F5F8; border-radius:8px; padding:6px 10px;}"
-_VALUE_HL = "QLabel{color:#1F2430; background:#E8F0FE; border-radius:8px; padding:6px 10px;}"
-_VALUE_ERR = "QLabel{color:#D64545; background:#FDF1F1; border-radius:8px; padding:6px 10px;}"
+_VALUE_STYLE = f"QLabel{{color:{theme.PALETTE['text']}; background:rgba(255,255,255,24); border-radius:8px; padding:6px 10px;}}"
+_VALUE_HL = "QLabel{color:#CFE0FF; background:rgba(62,139,255,80); border-radius:8px; padding:6px 10px;}"
+_VALUE_ERR = "QLabel{color:#FF8A8A; background:rgba(241,106,106,50); border-radius:8px; padding:6px 10px;}"
 
 
 class ProcessPickDialog(QDialog):
@@ -164,15 +165,15 @@ class EntryRow(QFrame):
         left.setSpacing(2)
         self.lbl_name = QLabel(entry.name)
         self.lbl_name.setStyleSheet(
-            "QLabel{font-size:14px; font-weight:700; color:#1F2430; background:transparent;}"
+            f"QLabel{{font-size:14px; font-weight:700; color:{theme.PALETTE['text']}; background:transparent;}}"
         )
         left.addWidget(self.lbl_name)
         self.lbl_addr = QLabel(entry.addr_display)
-        self.lbl_addr.setStyleSheet("QLabel{font-size:11px; color:#9AA3AF; background:transparent;}")
+        self.lbl_addr.setStyleSheet(f"QLabel{{font-size:11px; color:{theme.PALETTE['muted']}; background:transparent;}}")
         left.addWidget(self.lbl_addr)
         if entry.note:
             note = QLabel(entry.note)
-            note.setStyleSheet("QLabel{font-size:11px; color:#6B7280; background:transparent;}")
+            note.setStyleSheet(f"QLabel{{font-size:11px; color:{theme.PALETTE['muted']}; background:transparent;}}")
             left.addWidget(note)
         if not entry.enabled:
             self.lbl_name.setText(f"{entry.name}（已停用）")
@@ -384,7 +385,7 @@ class GameDetailPage(QWidget):
         titles.setSpacing(3)
         self.lbl_game = QLabel("未选择游戏")
         self.lbl_game.setStyleSheet(
-            "QLabel{font-size:17px; font-weight:700; color:#1F2430; background:transparent;}"
+            f"QLabel{{font-size:17px; font-weight:700; color:{theme.PALETTE['text']}; background:transparent;}}"
         )
         titles.addWidget(self.lbl_game)
         self.lbl_sub = QLabel("")
@@ -429,7 +430,7 @@ class GameDetailPage(QWidget):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet("color:#E2E5EA;")
+        sep.setStyleSheet("color:#27324E;")
         bar.addWidget(sep)
 
         self.btn_attach = QPushButton("附加进程")
@@ -453,12 +454,12 @@ class GameDetailPage(QWidget):
         st.setSpacing(14)
         self.lbl_session = QLabel("○ 未运行")
         self.lbl_session.setStyleSheet(
-            "QLabel{font-size:12px; font-weight:600; color:#6B7280; background:transparent;}"
+            f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['muted']}; background:transparent;}}"
         )
         st.addWidget(self.lbl_session)
         self.lbl_attach = QLabel("○ 未附加进程")
         self.lbl_attach.setStyleSheet(
-            "QLabel{font-size:12px; font-weight:600; color:#6B7280; background:transparent;}"
+            f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['muted']}; background:transparent;}}"
         )
         st.addWidget(self.lbl_attach)
         st.addStretch(1)
@@ -604,7 +605,7 @@ class GameDetailPage(QWidget):
         self._clear_chips()
         self.chips.addWidget(ChipLabel(t.category))
         for tag in t.tags[:4]:
-            self.chips.addWidget(ChipLabel(tag, color="#2F6FEB"))
+            self.chips.addWidget(ChipLabel(tag, color="#5B9BFF"))
         self.chips.addStretch(1)
 
         self.warnbox.setVisible(bool(t.online_risk))
@@ -806,14 +807,14 @@ class GameDetailPage(QWidget):
     def _on_attached(self, pid: int, name: str) -> None:
         self.lbl_attach.setText(f"● 已附加 {name}（PID {pid}）")
         self.lbl_attach.setStyleSheet(
-            "QLabel{font-size:12px; font-weight:600; color:#2E9E5B; background:transparent;}"
+            f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['ok']}; background:transparent;}}"
         )
         self.btn_detach.setEnabled(True)
 
     def _on_detached(self, reason: str) -> None:
         self.lbl_attach.setText("○ 未附加进程")
         self.lbl_attach.setStyleSheet(
-            "QLabel{font-size:12px; font-weight:600; color:#6B7280; background:transparent;}"
+            f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['muted']}; background:transparent;}}"
         )
         self.btn_detach.setEnabled(False)
         for row in self.rows:
@@ -942,7 +943,7 @@ class GameDetailPage(QWidget):
             el = self.launcher.elapsed(tid)
             self.lbl_session.setText(f"● 运行中（PID {s.pid if s else '-'}）· 已运行 {human_duration(el)}")
             self.lbl_session.setStyleSheet(
-                "QLabel{font-size:12px; font-weight:600; color:#B26B00; background:transparent;}"
+                f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['warn']}; background:transparent;}}"
             )
             self.btn_launch.setText("停止游戏")
             self.btn_stop.setEnabled(True)
@@ -950,7 +951,7 @@ class GameDetailPage(QWidget):
             last = self.t.last_run_at or "从未"
             self.lbl_session.setText(f"○ 未运行 · 上次 {last} · 累计 {self.t.run_count} 次")
             self.lbl_session.setStyleSheet(
-                "QLabel{font-size:12px; font-weight:600; color:#6B7280; background:transparent;}"
+                f"QLabel{{font-size:12px; font-weight:600; color:{theme.PALETTE['muted']}; background:transparent;}}"
             )
             self.btn_launch.setText("启动游戏")
             self.btn_stop.setEnabled(False)
