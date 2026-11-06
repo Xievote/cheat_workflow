@@ -1,26 +1,29 @@
-"""库中的修改器卡片。"""
+"""库列表中的纵向条形游戏卡片。
+
+一行一个游戏：左侧迷你封面色块，中间名称与关键信息，
+右侧地址数 / 导入状态 / 运行次数 / 收藏 / 启动。点击整行进入游戏详情页。
+"""
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QSize, Qt, Signal
-from PySide6.QtGui import QCursor, QFont
+from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QMenu,
     QPushButton,
-    QSizePolicy,
     QVBoxLayout,
+    QWidget,
 )
 
-from ..core import config
 from ..core.models import Trainer
-from .widgets import ChipLabel, CoverLabel, cached_color
+from .widgets import CoverLabel, cached_color
 
-CARD_W, CARD_H = 196, 236
+ROW_H = 72
 
 
-class TrainerCard(QFrame):
+class TrainerRow(QFrame):
     selected = Signal(int)
     launch = Signal(int)
     favorite_toggled = Signal(int)
@@ -29,89 +32,97 @@ class TrainerCard(QFrame):
     reveal_requested = Signal(int)
     open_page = Signal(int)
 
-    def __init__(self, t: Trainer, parent=None):
+    def __init__(self, t: Trainer, mem_count: int = 0, parent=None):
         super().__init__(parent)
         self.t = t
+        self.mem_count = mem_count
         self.setObjectName("panel")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.setFixedWidth(CARD_W)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        root = QVBoxLayout(self)
-        root.setContentsMargins(10, 10, 10, 10)
-        root.setSpacing(7)
-
-        # 封面 + 状态角标
-        self.cover = CoverLabel(t.game_title, t.cover_color or cached_color(t.game_title),
-                                w=CARD_W - 20, h=112)
-        root.addWidget(self.cover, 0, Qt.AlignmentFlag.AlignTop)
-
-        # 标题（深色系统下必须显式设置颜色，否则白字不可见）
-        self.lbl_title = QLabel(t.game_title)
-        self.lbl_title.setWordWrap(True)
-        self.lbl_title.setStyleSheet(
-            "QLabel{color:#1F2430; font-size:14px; font-weight:700; background:transparent;}"
-        )
-        self.lbl_title.setFixedHeight(38)
-        root.addWidget(self.lbl_title)
-
-        # 分类 / 来源
-        row = QHBoxLayout()
-        row.setSpacing(5)
-        self.chip_cat = ChipLabel(t.category)
-        row.addWidget(self.chip_cat, 0)
-        row.addStretch(1)
-        self.lbl_state = QLabel("")
-        row.addWidget(self.lbl_state)
-        root.addLayout(row)
-
-        # 底部：运行次数 + 收藏 + 启动
-        foot = QHBoxLayout()
-        foot.setSpacing(4)
-        self.lbl_runs = QLabel("")
-        self.lbl_runs.setStyleSheet(
-            "QLabel{color:#6B7280; font-size:12px; background:transparent;}"
-        )
-        foot.addWidget(self.lbl_runs, 1)
-
-        self.btn_fav = QPushButton("☆")
-        self.btn_fav.setObjectName("ghost")
-        self.btn_fav.setToolTip("收藏 / 取消收藏")
-        self.btn_fav.setFixedSize(26, 24)
-        self.btn_fav.clicked.connect(lambda: self.favorite_toggled.emit(self.t.id or 0))
-        foot.addWidget(self.btn_fav, 0)
-
-        self.btn_run = QPushButton("启动")
-        self.btn_run.setObjectName("primary")
-        self.btn_run.setFixedSize(52, 24)
-        self.btn_run.clicked.connect(lambda: self.launch.emit(self.t.id or 0))
-        foot.addWidget(self.btn_run, 0)
-        root.addLayout(foot)
-
+        self.setFixedHeight(ROW_H)
+        self._build()
         self.refresh(t)
         self._apply(False)
 
-    # ------------------------------------------------------------
-    def refresh(self, t: Trainer | None = None) -> None:
+    # ------------------------------------------------------------ UI
+    def _build(self) -> None:
+        root = QHBoxLayout(self)
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(12)
+
+        self.cover = CoverLabel("", "#3B6EA5", w=48, h=48, radius=9, text_scale=0.55)
+        root.addWidget(self.cover, 0)
+
+        mid = QVBoxLayout()
+        mid.setSpacing(2)
+        self.lbl_title = QLabel("")
+        self.lbl_title.setStyleSheet(
+            "QLabel{font-size:14px; font-weight:700; color:#1F2430; background:transparent;}"
+        )
+        mid.addWidget(self.lbl_title)
+        self.lbl_sub = QLabel("")
+        self.lbl_sub.setStyleSheet(
+            "QLabel{font-size:11px; color:#6B7280; background:transparent;}"
+        )
+        mid.addWidget(self.lbl_sub)
+        root.addLayout(mid, 1)
+
+        # 右侧信息区
+        self.chip_mem = QLabel("")
+        self.chip_mem.setObjectName("chip")
+        root.addWidget(self.chip_mem, 0)
+
+        self.lbl_state = QLabel("")
+        self.lbl_state.setStyleSheet("QLabel{font-size:12px; font-weight:600; background:transparent;}")
+        root.addWidget(self.lbl_state, 0)
+
+        self.lbl_runs = QLabel("")
+        self.lbl_runs.setStyleSheet("QLabel{font-size:12px; color:#9AA3AF; background:transparent;}")
+        root.addWidget(self.lbl_runs, 0)
+
+        self.btn_fav = QPushButton("☆")
+        self.btn_fav.setObjectName("ghost")
+        self.btn_fav.setFixedSize(28, 26)
+        self.btn_fav.setToolTip("收藏 / 取消收藏")
+        self.btn_fav.clicked.connect(lambda: self.favorite_toggled.emit(self.t.id or 0))
+        root.addWidget(self.btn_fav, 0)
+
+        self.btn_run = QPushButton("启动")
+        self.btn_run.setObjectName("primary")
+        self.btn_run.setFixedSize(56, 28)
+        self.btn_run.clicked.connect(lambda: self.launch.emit(self.t.id or 0))
+        root.addWidget(self.btn_run, 0)
+
+    # ------------------------------------------------------------ 数据
+    def refresh(self, t: Trainer | None = None, mem_count: int | None = None) -> None:
         if t:
             self.t = t
+        if mem_count is not None:
+            self.mem_count = mem_count
         t = self.t
-        self.cover.set_content(t.game_title, t.cover_color or cached_color(t.game_title))
 
-        self.lbl_title.setText(t.game_title)
-        self.lbl_title.setToolTip(f"{t.game_title}\n{t.title}\n{t.source_url}")
-        self.chip_cat.setText(f" {t.category} ")
+        self.cover.set_content(t.game_title or t.title, t.cover_color or cached_color(t.game_title))
+        self.lbl_title.setText(t.game_title or t.title)
+        self.lbl_title.setToolTip(f"{t.title}\n{t.source_url}")
+
+        bits = [t.category]
+        bits += [f"#{x}" for x in t.tags[:3]]
+        if t.author:
+            bits.append(t.author)
+        if t.version:
+            bits.append(f"v{t.version}")
+        self.lbl_sub.setText("  ·  ".join(bits))
+        self.lbl_sub.setToolTip(t.notes[:120] if t.notes else "")
+
+        self.chip_mem.setText(f" {self.mem_count} 条地址 " if self.mem_count else "")
+        self.chip_mem.setVisible(bool(self.mem_count))
 
         if t.installed:
             self.lbl_state.setText("● 已导入")
-            self.lbl_state.setStyleSheet(
-                "QLabel{color:#2E9E5B; font-size:12px; font-weight:600; background:transparent;}"
-            )
+            self.lbl_state.setStyleSheet("QLabel{color:#2E9E5B; font-size:12px; font-weight:600; background:transparent;}")
         else:
             self.lbl_state.setText("○ 待导入")
-            self.lbl_state.setStyleSheet(
-                "QLabel{color:#B26B00; font-size:12px; font-weight:600; background:transparent;}"
-            )
+            self.lbl_state.setStyleSheet("QLabel{color:#B26B00; font-size:12px; font-weight:600; background:transparent;}")
+
         self.lbl_runs.setText(f"运行 {t.run_count} 次")
         self.btn_fav.setText("★" if t.favorite else "☆")
         self.btn_fav.setStyleSheet(
@@ -125,13 +136,14 @@ class TrainerCard(QFrame):
 
     def _apply(self, on: bool) -> None:
         if on:
-            base = "QFrame#panel{background:#FFFFFF;border:2px solid #2F6FEB;border-radius:12px;}"
+            self.setStyleSheet(
+                "QFrame#panel{background:#F0F5FF;border:2px solid #2F6FEB;border-radius:12px;}"
+            )
         else:
-            base = (
+            self.setStyleSheet(
                 "QFrame#panel{background:#FFFFFF;border:1px solid #E2E5EA;border-radius:12px;}"
                 "QFrame#panel:hover{border:1px solid #BDC7D6;background:#FDFEFF;}"
             )
-        self.setStyleSheet(base)
 
     def set_running(self, running: bool, elapsed: int = 0) -> None:
         if running:
@@ -143,7 +155,7 @@ class TrainerCard(QFrame):
         else:
             self.btn_run.setText("启动")
             self.btn_run.setStyleSheet("")
-            self.btn_run.setToolTip("启动该修改器")
+            self.btn_run.setToolTip("启动该游戏")
 
     # ------------------------------------------------------------ 交互
     def mousePressEvent(self, event):  # noqa: N802
@@ -157,11 +169,9 @@ class TrainerCard(QFrame):
         self.launch.emit(self.t.id or 0)
         super().mouseDoubleClickEvent(event)
 
-    def enterEvent(self, event):  # noqa: N802
-        super().enterEvent(event)
-
     def _menu(self, event) -> None:
         m = QMenu(self)
+        a_open = m.addAction("进入详情页")
         a_launch = m.addAction("启动 / 停止")
         a_page = m.addAction("打开官方页面")
         a_fav = m.addAction("切换收藏")
@@ -173,7 +183,9 @@ class TrainerCard(QFrame):
         if not act:
             return
         tid = self.t.id or 0
-        if act is a_launch:
+        if act is a_open:
+            self.selected.emit(tid)
+        elif act is a_launch:
             self.launch.emit(tid)
         elif act is a_page:
             self.open_page.emit(tid)

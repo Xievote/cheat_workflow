@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QStatusBar,
     QSystemTrayIcon,
-    QTabWidget,
+    QStackedWidget,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -41,12 +41,10 @@ from ..core.launcher import Launcher
 from ..core.memory_engine import MemoryEngine
 from ..core.models import Trainer
 from . import theme
-from .detail_panel import DetailPanel
 from .dialogs import AboutDialog, EditDialog, RecordsDialog, SettingsDialog
-from .memory_page import MemoryPage
-from .trainer_card import TrainerCard
+from .game_detail import GameDetailPage
+from .trainer_row import TrainerRow
 from .widgets import (
-    FlowLayout,
     confirm,
     open_local_path,
     reveal_in_explorer,
@@ -64,7 +62,7 @@ class MainWindow(QMainWindow):
         self.sort_key = "name"
         self.keyword = ""
         self.selected_id: int | None = None
-        self.cards: dict[int, TrainerCard] = {}
+        self.cards: dict[int, TrainerRow] = {}
 
         self.setWindowTitle(config.APP_TITLE)
         self.resize(1320, 860)
@@ -114,11 +112,12 @@ class MainWindow(QMainWindow):
         lv.addWidget(self.lbl_stat_side)
         splitter.addWidget(left)
 
-        # 中：双标签（修改器库卡片网格 / 内存修改）
-        self.tabs = QTabWidget()
-        mid = QWidget()
-        mv = QVBoxLayout(mid)
-        mv.setContentsMargins(14, 12, 14, 12)
+        # 中：堆叠视图 —— 页1 条形卡片列表 / 页2 游戏详情（含内存修改）
+        self.stack = QStackedWidget()
+
+        lib = QWidget()
+        mv = QVBoxLayout(lib)
+        mv.setContentsMargins(16, 12, 16, 12)
         mv.setSpacing(8)
         head = QHBoxLayout()
         self.lbl_view = QLabel("全部修改器")
@@ -133,31 +132,32 @@ class MainWindow(QMainWindow):
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.container = QWidget()
-        # 注意：必须用带选择器的规则，裸样式（"background:transparent;"）
-        # 会级联污染所有卡片子控件，把"启动"按钮的蓝底覆盖成透明
+        # 必须用带选择器的规则：裸样式会级联污染子控件（按钮蓝底被覆盖）
         self.container.setObjectName("gridHost")
         self.container.setStyleSheet("QWidget#gridHost{background:transparent;}")
-        self.flow = FlowLayout(self.container, hspace=12, vspace=12)
-        self.container.setLayout(self.flow)
+        self.row_layout = QVBoxLayout(self.container)
+        self.row_layout.setContentsMargins(0, 2, 0, 2)
+        self.row_layout.setSpacing(8)
+        self.row_layout.addStretch(1)
         self.scroll.setWidget(self.container)
         mv.addWidget(self.scroll, 1)
 
         self.mem_engine = MemoryEngine(self)
-        self.mem_page = MemoryPage(self.db, self.mem_engine)
-        self.mem_page.activity.connect(lambda m: self.lbl_status.setText(m))
-        self.mem_page.request_tab_switch.connect(lambda: self.tabs.setCurrentWidget(self.mem_page))
+        self.detail = GameDetailPage(self.db, self.launcher, self.mem_engine)
+        self.detail.activity.connect(lambda m: self.lbl_status.setText(m))
+        self.detail.back_requested.connect(self.show_library)
+        self.detail.favorite_changed.connect(self._on_fav_changed)
+        self.detail.edit_requested.connect(self.edit_trainer)
+        self.detail.delete_requested.connect(self.delete_trainer)
 
-        self.tabs.addTab(mid, "修改器库")
-        self.tabs.addTab(self.mem_page, "内存修改")
-        splitter.addWidget(self.tabs)
+        self.stack.addWidget(lib)
+        self.stack.addWidget(self.detail)
+        self.lib_page = lib
+        splitter.addWidget(self.stack)
 
-        # 右：详情
-        self.detail = DetailPanel(self.db, self.launcher, self)
-        splitter.addWidget(self.detail)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
-        splitter.setSizes([210, 730, 380])
+        splitter.setSizes([220, 1100])
 
         sb = QStatusBar()
         self.setStatusBar(sb)
@@ -314,19 +314,21 @@ class MainWindow(QMainWindow):
             return
         self.side_key = key
         self.reload_library()
+        self.show_library()
 
     def _on_sort_changed(self) -> None:
         self.sort_key = self.cmb_sort.currentData() or "name"
         self.reload_library()
+        self.show_library()
 
-    # ============================================================ 库网格
+    # ============================================================ 库列表
     def reload_library(self) -> None:
         self.keyword = self.search.text().strip()
         sort = "recent" if self.side_key == "recent:side" else self.sort_key
         trainers = self.db.search(keyword=self.keyword, side=self.side_key, sort=sort)
 
-        while self.flow.count():
-            item = self.flow.takeAt(0)
+        while self.row_layout.count() > 1:
+            item = self.row_layout.takeAt(0)
             w = item.widget()
             if w:
                 w.setParent(None)
@@ -334,19 +336,19 @@ class MainWindow(QMainWindow):
         self.cards.clear()
 
         for t in trainers:
-            card = TrainerCard(t, self.container)
-            card.selected.connect(self.select_trainer)
-            card.launch.connect(self.toggle_launch)
-            card.favorite_toggled.connect(self.toggle_favorite)
-            card.edit_requested.connect(self.edit_trainer)
-            card.delete_requested.connect(self.delete_trainer)
-            card.reveal_requested.connect(self.reveal_trainer)
-            card.open_page.connect(lambda tid: self.open_page(tid))
-            card.set_running(self.launcher.is_running(t.id or 0))
+            row = TrainerRow(t, self.db.count_memory(t.id or 0), self.container)
+            row.selected.connect(self.select_trainer)
+            row.launch.connect(self.toggle_launch)
+            row.favorite_toggled.connect(self.toggle_favorite)
+            row.edit_requested.connect(self.edit_trainer)
+            row.delete_requested.connect(self.delete_trainer)
+            row.reveal_requested.connect(self.reveal_trainer)
+            row.open_page.connect(lambda tid: self.open_page(tid))
+            row.set_running(self.launcher.is_running(t.id or 0))
             if t.id == self.selected_id:
-                card.set_selected(True)
-            self.flow.addWidget(card)
-            self.cards[t.id or 0] = card
+                row.set_selected(True)
+            self.row_layout.insertWidget(self.row_layout.count() - 1, row)
+            self.cards[t.id or 0] = row
 
         self.lbl_count.setText(f"{len(trainers)} 项")
         self.lbl_view.setText(NAV_TITLE.get(self.side_key, self._nav_title()))
@@ -354,9 +356,8 @@ class MainWindow(QMainWindow):
             empty = QLabel(self._empty_text())
             empty.setObjectName("muted")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty.setMinimumHeight(220)
-            self.flow.addWidget(empty)
-        self.container.adjustSize()
+            empty.setMinimumHeight(180)
+            self.row_layout.insertWidget(0, empty)
 
     def _nav_title(self) -> str:
         key = self.side_key
@@ -373,21 +374,24 @@ class MainWindow(QMainWindow):
             return f"没有匹配 “{self.keyword}” 的修改器。"
         return "该分类下暂无内容。"
 
-    # ============================================================ 选择
+    # ============================================================ 选择 / 跳转
     def select_trainer(self, tid: int) -> None:
-        for cid, card in self.cards.items():
-            card.set_selected(cid == tid)
+        for cid, row in self.cards.items():
+            row.set_selected(cid == tid)
         self.selected_id = tid
         t = self.db.get_trainer(tid)
         self.detail.set_trainer(t)
-        self.mem_page.set_trainer(t)
+        self.stack.setCurrentWidget(self.detail)   # 点击条形卡片 → 进入游戏详情页
+
+    def show_library(self) -> None:
+        self.stack.setCurrentWidget(self.lib_page)
 
     def refresh_card(self, tid: int) -> None:
-        card = self.cards.get(tid)
+        row = self.cards.get(tid)
         t = self.db.get_trainer(tid)
-        if card and t:
-            card.refresh(t)
-            card.set_running(self.launcher.is_running(tid))
+        if row and t:
+            row.refresh(t, self.db.count_memory(tid))
+            row.set_running(self.launcher.is_running(tid))
 
     # ============================================================ 动作
     def toggle_launch(self, tid: int) -> None:
@@ -516,10 +520,6 @@ class MainWindow(QMainWindow):
         self.launcher.sessionStarted.connect(self._on_started)
         self.launcher.sessionEnded.connect(self._on_ended)
         self.launcher.message.connect(lambda _tid, m: self.lbl_status.setText(m))
-        self.detail.activity.connect(self.lbl_status.setText)
-        self.detail.favorite_changed.connect(self._on_fav_changed)
-        self.detail.edit_requested.connect(self.edit_trainer)
-        self.detail.delete_requested.connect(self.delete_trainer)
 
     def _on_fav_changed(self, tid: int) -> None:
         self.refresh_card(tid)
@@ -534,8 +534,8 @@ class MainWindow(QMainWindow):
             self.detail._refresh_session()
         # 游戏启动后自动附加内存引擎（延迟等待选中状态同步完成）
         def _try_attach() -> None:
-            if self.mem_page.t and (self.mem_page.t.id or 0) == tid:
-                self.mem_page.auto_attach_pid(pid)
+            if self.detail.t and (self.detail.t.id or 0) == tid:
+                self.detail.auto_attach_pid(pid)
 
         QTimer.singleShot(500, _try_attach)
 

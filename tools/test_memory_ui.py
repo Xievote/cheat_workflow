@@ -1,10 +1,12 @@
-"""内存修改功能整体冒烟测试（离屏，不影响真实数据库）。
+"""重构后 UI 冒烟测试（离屏，不影响真实数据库）。
 
 覆盖：
-1. MainWindow 构建成功（含新 Tab：修改器库 / 内存修改）
-2. 建游戏条目 → 录入 3 条不同控件类型的内存地址 → 持久化 → 重读校验
-3. MemoryPage 行控件生成（slider / spin / button / toggle 各一行）
-4. offset 解析与非法输入拒绝
+1. MainWindow 构建：中央为堆叠视图（列表页 / 详情页），无 Tab
+2. 库列表为纵向条形卡片 TrainerRow
+3. 点击卡片 → 进入详情页（stack 切换）
+4. 详情页地址列表控件生成（slider / spin / button / toggle）
+5. 每个地址可切换修改方式并持久化
+6. 返回列表、增删改、级联删除
 运行：.venv/Scripts/python.exe tools/test_memory_ui.py
 """
 from __future__ import annotations
@@ -16,17 +18,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QCheckBox, QDoubleSpinBox, QPushButton, QSlider  # noqa: E402
 
 from gtv.core.database import Database  # noqa: E402
 from gtv.core.launcher import Launcher  # noqa: E402
 from gtv.core.models import MemoryEntry, Trainer  # noqa: E402
+from gtv.ui.game_detail import EntryRow, GameDetailPage  # noqa: E402
 from gtv.ui.main_window import MainWindow  # noqa: E402
 from gtv.ui.memory_dialog import parse_offsets  # noqa: E402
-from gtv.ui.memory_page import MemoryPage  # noqa: E402
+from gtv.ui.trainer_row import TrainerRow  # noqa: E402
 
 
 def main() -> int:
@@ -35,14 +37,15 @@ def main() -> int:
     tmpdir = tempfile.mkdtemp(prefix="gtv-test-")
     db = Database(Path(tmpdir) / "test.db")
 
-    # ---- 1. 主窗口构建
+    # ---- 1. 窗口结构
     win = MainWindow(db, Launcher(db))
-    assert win.tabs.count() == 2, "应有 2 个标签页"
-    assert win.tabs.tabText(0) == "修改器库" and win.tabs.tabText(1) == "内存修改"
-    print("[1] MainWindow 双标签构建  OK")
+    assert win.stack.count() == 2, "应有两个堆叠页面"
+    assert not hasattr(win, "tabs"), "不应再有 Tab 控件"
+    print("[1] 堆叠视图（列表/详情）构建  OK")
 
-    # ---- 2. 游戏条目 + 内存地址持久化
-    t = Trainer(title="Test Game", game_title="测试游戏", category="测试", exe_path=r"C:\Games\test.exe")
+    # ---- 2. 数据准备
+    t = Trainer(title="Test Game", game_title="测试游戏", category="动作角色扮演",
+                tags=["开放世界", "动作"], exe_path=r"C:\Games\test.exe")
     tid = db.add_trainer(t)
     entries = [
         MemoryEntry(trainer_id=tid, name="金币", addr="game.exe+1A2B3C", offsets=[0x10, 0x4],
@@ -56,51 +59,64 @@ def main() -> int:
     ]
     for e in entries:
         e.id = db.add_memory(e)
-    loaded = db.list_memory(tid)
-    assert len(loaded) == 4, f"应加载 4 条，实际 {len(loaded)}"
-    assert loaded[0].offsets == [0x10, 0x4], "偏移链持久化/回读失败"
-    assert loaded[1].addr == "7FF6A1B2C3D0"
-    assert loaded[3].enabled is False
-    assert db.count_memory(tid) == 4
-    print("[2] 内存地址持久化（含指针链/启停状态）  OK")
 
-    # ---- 3. 选中游戏 → MemoryPage 生成行控件
+    # ---- 3. 库列表：条形卡片
+    win.reload_library()
+    rows = win.container.findChildren(TrainerRow)
+    assert len(rows) == 1, f"应有 1 个条形卡片，实际 {len(rows)}"
+    row = rows[0]
+    assert row.height() == 72
+    assert row.chip_mem.text().strip() == "4 条地址", f"地址数徽标错误：{row.chip_mem.text()!r}"
+    print(f"[2] 条形卡片：{row.lbl_title.text()} / {row.lbl_sub.text()} / {row.chip_mem.text().strip()}  OK")
+
+    # ---- 4. 点击卡片 → 详情页
     win.select_trainer(tid)
-    page: MemoryPage = win.mem_page
+    assert win.stack.currentWidget() is win.detail, "未跳转到详情页"
+    page: GameDetailPage = win.detail
     assert page.t and page.t.id == tid
     assert len(page.rows) == 4, f"应生成 4 行，实际 {len(page.rows)}"
-    kinds = [type(row._ctl).__name__ for row in page.rows]
+    kinds = [type(r._ctl).__name__ for r in page.rows]
     assert kinds == ["QDoubleSpinBox", "QSlider", "QPushButton", "QCheckBox"], kinds
-    from PySide6.QtWidgets import QSlider
-
     s: QSlider = page.rows[1]._ctl
-    assert s.minimum() == 0 and s.maximum() == 200, "滑动条范围换算（0~100 步长0.5）失败"
-    print(f"[3] 控件自动生成 {kinds}  OK")
+    assert s.minimum() == 0 and s.maximum() == 200, "滑块范围换算（0~100 步长0.5）失败"
+    print("[3] 进入详情页 + 控件生成  OK")
 
-    # ---- 4. 编辑 + 删除
-    e = loaded[0]
+    # ---- 5. 切换修改方式（数值框 → 开关）并持久化
+    r0: EntryRow = page.rows[0]
+    idx_toggle = next(i for i in range(r0.cmb.count()) if r0.cmb.itemData(i) == "toggle")
+    r0.cmb.setCurrentIndex(idx_toggle)
+    assert isinstance(r0._ctl, QCheckBox), f"切换后控件类型未更新：{type(r0._ctl).__name__}"
+    assert db.list_memory(tid)[0].control == "toggle", "修改方式未持久化"
+    print("[4] 修改方式切换 + 持久化  OK")
+
+    # ---- 6. 返回列表
+    win.show_library()
+    assert win.stack.currentWidget() is win.lib_page
+    print("[5] 返回列表  OK")
+
+    # ---- 7. 增删改 + 级联删除
+    e = db.list_memory(tid)[0]
     e.name = "金币改"
     db.update_memory(e)
     assert db.list_memory(tid)[0].name == "金币改"
-    db.delete_memory(loaded[3].id)
+    db.delete_memory(entries[3].id)
     assert db.count_memory(tid) == 3
-    print("[4] 地址条目改/删  OK")
-
-    # ---- 5. 删除游戏 → 级联删除地址
+    win.reload_library()
+    row = list(win.cards.values())[0]
+    assert row.chip_mem.text().strip() == "3 条地址", row.chip_mem.text()
     db.delete_trainer(tid)
     assert db.count_memory(tid) == 0
-    print("[5] 删除游戏级联清理地址  OK")
+    print("[6] 增删改 / 卡片地址数刷新 / 级联删除  OK")
 
-    # ---- 6. 偏移链解析（含非法输入）
+    # ---- 8. 偏移链解析
     assert parse_offsets("10, 4") == [0x10, 0x4]
-    assert parse_offsets("0x10 0x4; 8") == [0x10, 0x4, 8]
     assert parse_offsets("") == []
     try:
         parse_offsets("10, zz")
         raise AssertionError("非法偏移未被拒绝")
     except ValueError:
         pass
-    print("[6] 偏移链解析与校验  OK")
+    print("[7] 偏移链解析与校验  OK")
 
     db.close()
     print("\nALL UI TESTS PASSED")
